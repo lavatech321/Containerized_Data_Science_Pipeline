@@ -10,7 +10,7 @@ pipeline {
 
         stage('Checkout Code') {
             steps {
-                git 'https://github.com/lavatech321/Containerized_Data_Science_Pipeline.git'
+                git branch: 'main', url: 'https://github.com/lavatech321/Containerized_Data_Science_Pipeline.git'
             }
         }
 
