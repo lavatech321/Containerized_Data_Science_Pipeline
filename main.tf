@@ -78,7 +78,7 @@ resource "aws_instance" "servers" {
                 host = aws_instance.servers.public_ip
         }
 	provisioner "file" {
-    		source      = "install_configure_jekins.yaml"
+    		source      = "configure_server.yaml"
 		destination = "/home/ubuntu/playbook1.sh"
   	}
 
@@ -93,7 +93,6 @@ resource "aws_instance" "servers" {
 	    "sudo apt install -y ansible",
 	    "sed -i 's/REPLACE-IP/${self.public_ip}/g' /home/ubuntu/playbook1.sh",
 	    "ansible-playbook /home/ubuntu/playbook1.sh",
-
   	]
 	}
 }
