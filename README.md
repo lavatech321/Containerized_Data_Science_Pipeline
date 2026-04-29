@@ -1,122 +1,48 @@
-# Terraform Jenkins Deployment on AWS EC2
+= Containerised Data Science Pipeline with CI/CD
 
-This project provisions an AWS EC2 instance using Terraform and automatically installs and configures Jenkins for CI/CD usage.
+This project demonstrates a complete end-to-end DevOps + Data Science pipeline where a Python-based data science application is containerised, deployed, and automated using Terraform, Ansible, Jenkins, and Docker.
 
----
+== Project Overview
 
-## Technologies Used
+We are building a Containerised Data Science Pipeline in which:
 
-| Layer          | Technology                        |
-| -------------- | --------------------------------- |
-| Infrastructure | Terraform, AWS EC2 (Amazon Linux) |
-| CI/CD          | Jenkins                           |
+* A Python data science application analyzes student data
+* The application is containerised using Docker
+* Jenkins CI/CD pipeline is used to build and deploy the application
+* Terraform provisions infrastructure on AWS EC2
+* Ansible installs and configures Docker and Jenkins automatically
+* The application is deployed as a Streamlit dashboard
+* Jenkins Blue Ocean UI is used to visualize the entire pipeline
 
----
+== Detailed Workflow
+1. Terraform
+* Provisions AWS EC2 instance
 
-## Project Setup & Usage
+2. Ansible (Triggered by Terraform)
+* Installs Docker
+* Installs Jenkins
+* Configures Jenkins environment
 
-### Step 1: Clone the Repository
+3. Jenkins CI/CD Pipeline
+* Pulls code from GitHub
+* Builds Docker image
+* Runs container
+* Deploys the data science application
 
-```bash
-git clone https://github.com/lavatech321/Terraform_CICD_Deployment.git
-cd Terraform_CICD_Deployment
-```
+4. Docker
+* Hosts the containerised application
 
----
+5. Streamlit Application
+* Runs on port 8501
+* Displays analysed student data
 
-### Step 2: Configure AWS Credentials
 
-Open the `terraform.tfvars` file and replace with your AWS credentials:
+== Application Details
 
-```hcl
-aws_access_key = "YOUR_ACCESS_KEY"
-aws_secret_key = "YOUR_SECRET_KEY"
-region         = "ap-south-1"
-```
-
-⚠️  Make sure:
-
-* You use a valid AWS IAM user
-* The user has permissions for EC2, security groups, and key pairs
-
----
-
-### Step 3: Initialize Terraform
-
-```bash
-terraform init
-```
-
----
-
-### Step 4: Apply Terraform Configuration
-
-```bash
-terraform apply --auto-approve
-```
-
-This will:
-
-* Create an EC2 instance
-* Install Jenkins automatically
-* Configure Jenkins with a default admin user
-
----
-
-### Step 5: Access Jenkins
-
-Once deployment is complete:
-
-* Open your browser:
-
-  ```
-  http://<EC2-PUBLIC-IP>:8080
-  ```
-
-* Login credentials:
-
-  ```
-  Username: admin
-  Password: admin123
-  ```
-
----
-
-## 📌 Notes
-
-* Ensure port **8080** is open in the security group
-* Wait 1–2 minutes after deployment for Jenkins to fully start
-* You can modify instance type and region in `vars.tf` or `terraform.tfvars`
-
----
-
-## Project Purpose
-
-This project demonstrates:
-
-* Infrastructure as Code using Terraform
-* Automated Jenkins setup on AWS
-* Basic CI/CD environment provisioning
-
----
-
-## 🧹 Cleanup (Important)
-
-To destroy the infrastructure and avoid AWS charges:
-
-```bash
-terraform destroy --auto-approve
-```
-
----
-
-## ✅ Outcome
-
-After completion, you will have:
-
-* A running EC2 instance
-* Jenkins installed and ready
-* A base setup for CI/CD pipelines
-
----
-
+* Python script analyzes student data, uses:
+Pandas
+NumPy
+Matplotlib
+Streamlit
+Generates insights and visualizations
+Provides an interactive dashboard
