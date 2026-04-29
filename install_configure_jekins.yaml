@@ -1,5 +1,5 @@
 ---
-- name: Install and Setup Jenkins with plugins
+- name: Install and Setup Jenkins with Docker and plugins
   hosts: localhost
   become: yes
 
@@ -8,6 +8,7 @@
     plugin_manager_url: https://github.com/jenkinsci/plugin-installation-manager-tool/releases/download/2.13.0/jenkins-plugin-manager-2.13.0.jar
     plugin_manager_path: /tmp/plugin-manager.jar
     jenkins_deb_url: https://pkg.jenkins.io/debian-stable/binary/jenkins_2.555.1_all.deb
+    jenkins_home: /var/lib/jenkins
 
     plugins_list:
       - git
@@ -17,24 +18,88 @@
 
   tasks:
 
-  # ================= INSTALLATION =================
+  # ================= BASE =================
 
     - name: Update apt cache
       apt:
         update_cache: yes
 
-    - name: Install required packages
+    - name: Install base packages
       apt:
         name:
           - ca-certificates
           - curl
           - gnupg
+          - lsb-release
           - git
           - openjdk-21-jdk
           - wget
         state: present
 
-    - name: Download Jenkins .deb package
+  # ================= DOCKER SETUP =================
+
+    - name: Create keyrings directory
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Download Docker GPG key
+      get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /tmp/docker.asc
+        mode: '0644'
+
+    - name: Convert Docker GPG key to binary
+      command: >
+        gpg --dearmor -o /etc/apt/keyrings/docker.gpg /tmp/docker.asc
+      args:
+        creates: /etc/apt/keyrings/docker.gpg
+
+    - name: Set permission on Docker GPG key
+      file:
+        path: /etc/apt/keyrings/docker.gpg
+        mode: '0644'
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable"
+        state: present
+        filename: docker
+
+    - name: Update apt after Docker repo
+      apt:
+        update_cache: yes
+
+    - name: Install Docker
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+
+    - name: Enable and start Docker
+      systemd:
+        name: docker
+        enabled: yes
+        state: started
+
+    - name: Add users to docker group
+      user:
+        name: "{{ item }}"
+        groups: docker
+        append: yes
+      loop:
+        - ubuntu
+        - jenkins
+      ignore_errors: yes
+
+  # ================= JENKINS INSTALL =================
+
+    - name: Download Jenkins
       get_url:
         url: "{{ jenkins_deb_url }}"
         dest: /tmp/jenkins.deb
@@ -43,7 +108,7 @@
       apt:
         deb: /tmp/jenkins.deb
 
-    - name: Enable Jenkins service
+    - name: Enable Jenkins
       service:
         name: jenkins
         enabled: yes
@@ -53,7 +118,7 @@
         name: jenkins
         state: started
 
-  # ================= CONFIGURATION =================
+  # ================= JENKINS CONFIG =================
 
     - name: Stop Jenkins
       service:
@@ -68,43 +133,27 @@
         line: 'JENKINS_JAVA_OPTIONS="-Djenkins.install.runSetupWizard=false"'
         create: yes
 
-    - name: Remove initial admin password
+    - name: Clean old Jenkins setup
       file:
-        path: "{{ jenkins_home }}/secrets/initialAdminPassword"
+        path: "{{ item }}"
         state: absent
+      loop:
+        - "{{ jenkins_home }}/secrets/initialAdminPassword"
+        - "{{ jenkins_home }}/users"
+        - "{{ jenkins_home }}/plugins"
 
-    - name: Remove old users
+    - name: Recreate required directories
       file:
-        path: "{{ jenkins_home }}/users"
-        state: absent
-
-    - name: Recreate users directory
-      file:
-        path: "{{ jenkins_home }}/users"
+        path: "{{ item }}"
         state: directory
         owner: jenkins
         group: jenkins
+      loop:
+        - "{{ jenkins_home }}/users"
+        - "{{ jenkins_home }}/plugins"
+        - "{{ jenkins_home }}/init.groovy.d"
 
-    - name: Remove old plugins
-      file:
-        path: "{{ jenkins_home }}/plugins"
-        state: absent
-
-    - name: Recreate plugins directory
-      file:
-        path: "{{ jenkins_home }}/plugins"
-        state: directory
-        owner: jenkins
-        group: jenkins
-
-    - name: Create init.groovy.d directory
-      file:
-        path: "{{ jenkins_home }}/init.groovy.d"
-        state: directory
-        owner: jenkins
-        group: jenkins
-
-    - name: Create admin user via Groovy script
+    - name: Create admin user
       copy:
         dest: "{{ jenkins_home }}/init.groovy.d/create-user.groovy"
         content: |
@@ -112,7 +161,6 @@
           import hudson.security.*
 
           def instance = Jenkins.instanceOrNull
-
           if (instance != null) {
             def realm = new HudsonPrivateSecurityRealm(false)
             realm.createAccount("admin","admin123")
@@ -126,21 +174,16 @@
           }
         owner: jenkins
         group: jenkins
-        mode: '0644'
 
     - name: Mark setup complete
       copy:
-        dest: "{{ jenkins_home }}/jenkins.install.UpgradeWizard.state"
+        dest: "{{ item }}"
         content: "2.0"
         owner: jenkins
         group: jenkins
-
-    - name: Mark last exec version
-      copy:
-        dest: "{{ jenkins_home }}/jenkins.install.InstallUtil.lastExecVersion"
-        content: "2.0"
-        owner: jenkins
-        group: jenkins
+      loop:
+        - "{{ jenkins_home }}/jenkins.install.UpgradeWizard.state"
+        - "{{ jenkins_home }}/jenkins.install.InstallUtil.lastExecVersion"
 
     - name: Download plugin manager
       get_url:
@@ -148,15 +191,12 @@
         dest: "{{ plugin_manager_path }}"
         mode: '0755'
 
-    - name: Reload systemd
-      command: systemctl daemon-reexec
-
     - name: Start Jenkins
       service:
         name: jenkins
         state: started
 
-    - name: Wait for Jenkins to be up
+    - name: Wait for Jenkins
       uri:
         url: http://localhost:8080/login
         status_code: 200
@@ -165,7 +205,7 @@
       delay: 5
       until: result.status == 200
 
-    - name: Create plugin list file
+    - name: Create plugin list
       copy:
         dest: /tmp/plugins.txt
         content: |
@@ -178,14 +218,9 @@
         java -jar {{ plugin_manager_path }} \
         --war /usr/share/java/jenkins.war \
         --plugin-file /tmp/plugins.txt \
-        --plugin-download-directory {{ jenkins_home }}/plugins \
-        --verbose
-      register: plugin_install
-      retries: 3
-      delay: 10
-      until: plugin_install.rc == 0
+        --plugin-download-directory {{ jenkins_home }}/plugins
 
-    - name: Fix Jenkins permissions
+    - name: Fix permissions
       file:
         path: "{{ jenkins_home }}"
         recurse: yes
@@ -201,16 +236,38 @@
       pause:
         seconds: 30
 
-    - name: Verify plugins installed
-      shell: "ls {{ jenkins_home }}/plugins | grep workflow"
-      register: verify_plugins
-      failed_when: verify_plugins.rc != 0
-
-    - name: Show success message
+    - name: Final message
       debug:
         msg: |
-          Jenkins setup successful!
+          ✅ Jenkins + Docker setup complete!
           URL: http://REPLACE-IP:8080
           Username: admin
           Password: admin123
+
+    - name: Create init.groovy.d directory
+      file:
+        path: "{{ jenkins_home }}/init.groovy.d"
+        state: directory
+        owner: jenkins
+        group: jenkins
+        mode: '0755'
+
+    - name: Copy pipeline.groovy to Jenkins init directory
+      copy:
+        src: /home/ubuntu/pipeline.groovy
+        dest: "{{ jenkins_home }}/init.groovy.d/pipeline.groovy"
+        owner: jenkins
+        group: jenkins
+        mode: '0644'
+
+    - name: Restart Docker service
+      service:
+        name: docker
+        state: restarted
+
+    - name: Restart Jenkins service
+      service:
+        name: jenkins
+        state: restarted
+
 

@@ -81,24 +81,32 @@ resource "aws_instance" "servers" {
     		source      = "install_configure_jekins.yaml"
 		destination = "/home/ubuntu/playbook1.sh"
   	}
+
+	provisioner "file" {
+    		source      = "pipeline.groovy"
+		destination = "/home/ubuntu/pipeline.groovy"
+  	}
+
 	provisioner "remote-exec" {
 	  inline = [
 	    "sudo apt update -y",
 	    "sudo apt install -y ansible",
 	    "sed -i 's/REPLACE-IP/${self.public_ip}/g' /home/ubuntu/playbook1.sh",
 	    "ansible-playbook /home/ubuntu/playbook1.sh",
+
   	]
 	}
 }
-
 output "EC2-Instance-access-details" {
 	value = "ssh -i ~/.ssh/id_rsa ubuntu@${aws_instance.servers.public_ip} \n"
 }
-
 output "Jenkins-UI" {
 	value = "http://${aws_instance.servers.public_ip}:8080 \n"
 }
 output "Jenkins-Credentials" {
 	value =  "Username: admin / Password: admin123"
+}
+output "Streamlit-UI" {
+	value = "http://${aws_instance.servers.public_ip}:8501 \n"
 }
 
