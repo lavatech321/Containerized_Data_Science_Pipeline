@@ -1,0 +1,12 @@
+- name: Setup Jenkins, Docker and Data Science Pipeline
+  hosts: localhost
+  become: yes
+  roles:
+    # install and configure jenkins
+    - devops.projects.jenkins
+
+    # install docker and docker compose
+    - devops.projects.docker
+
+    # configure jenkins cicd pipeline for python data science app
+    - devops.projects.data_science_pipeline 
