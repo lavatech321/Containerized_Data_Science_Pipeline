@@ -112,6 +112,96 @@ http://<EC2-PUBLIC-IP>:8501
 ```
 ---
 
+# ☁️ Infrastructure Deployment
+
+## Configure Terraform Variables
+
+Update the `terraform.tfvars` file with your AWS credentials.
+
+```bash
+cat terraform.tfvars
+
+AWS_ACCESS_KEY="add-your-creds"
+AWS_SECRET_KEY="add-your-creds"
+AWS_REGION="us-east-1"
+```
+
+---
+
+## 🚀 Deploy Infrastructure Using Terraform
+
+### Initialize Terraform
+
+```bash
+terraform init
+```
+
+### Apply Terraform Configuration
+
+```bash
+terraform apply --auto-approve
+```
+
+---
+
+## 📤 Terraform Outputs
+
+After successful deployment, Terraform generates useful access details.
+
+```bash
+terraform output
+```
+
+### Example Output
+
+```text
+EC2-Instance-access-details = <<EOT
+ssh -i ~/.ssh/id_rsa ubuntu@54.86.169.125
+EOT
+
+Jenkins-Credentials = <<EOT
+Username: admin
+Password: admin123
+EOT
+
+Jenkins-UI = <<EOT
+http://54.86.169.125:8080
+EOT
+
+Streamlit-Access = <<EOT
+http://54.86.169.125:8501
+EOT
+```
+
+---
+
+## 👨‍💻 Jenkins Login Credentials
+
+```text
+Username: admin
+Password: admin123
+```
+
+---
+
+## 🌐 Application Access
+
+Once deployment is complete:
+
+## Jenkins Dashboard
+
+```text
+http://ec2-public-ip:8080
+```
+
+## Streamlit Dashboard
+
+```text
+http://ec2-public-ip:8501
+```
+
+---
+
 # 🔥 Features
 
 - 📊 Student data analysis dashboard
@@ -148,4 +238,3 @@ This project demonstrates practical knowledge of:
 - Automation tools integration
 
 ---
-
